@@ -9,6 +9,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("HelloRestSoft")
         self.resize(1000, 700)
         
+        # Set Icon
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'resources', 'logo.png')
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QtGui.QIcon(icon_path))
+        
         self.main_widget = QtWidgets.QWidget()
         self.setCentralWidget(self.main_widget)
         
