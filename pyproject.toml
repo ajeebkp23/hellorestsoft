@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.2", "setuptools_scm[toml]>=6.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hellorestsoft"
+version = "0.1.0"
+description = "A Bruno-like REST client using git-cola libraries"
+authors = [{name = "Antigravity", email = "antigravity@example.com"}]
+license = {text = "GPL-2.0"}
+dependencies = [
+    "qtpy >= 1.1.0",
+    "httpx",  # For async REST client functionality
+]
+requires-python = ">=3.6"
+
+[project.scripts]
+hellorestsoft = "hellorestsoft.main:main"
+
+[tool.setuptools]
+packages = ["hellorestsoft", "cola"]
+
+[tool.setuptools.package-dir]
+cola = "git-cola/cola"
