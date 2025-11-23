@@ -21,4 +21,4 @@ hellorestsoft = "hellorestsoft.main:main"
 packages = ["hellorestsoft", "cola"]
 
 [tool.setuptools.package-dir]
-cola = "git-cola/cola"
+cola = "git-cola/cola"  # Pinned to git-cola commit: a810c8e

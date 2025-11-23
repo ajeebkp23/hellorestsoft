@@ -10,6 +10,16 @@ A Bruno-like REST client built using `git-cola` libraries and `httpx`.
 
 ## Installation
 
+First, fetch the `git-cola` dependency:
+
+```bash
+git clone --depth 1 https://github.com/git-cola/git-cola.git
+```
+
+> **Note:** This project is currently tested against `git-cola` commit `a810c8e`.
+
+Then set up the environment:
+
 ```bash
 # venv
 python -m venv venv
