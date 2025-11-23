@@ -1,4 +1,5 @@
-from qtpy import QtWidgets, QtCore
+import os
+from qtpy import QtWidgets, QtCore, QtGui
 from cola import qtutils
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -21,6 +22,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sidebar_layout.setContentsMargins(0, 0, 0, 0)
         self.layout.addWidget(self.sidebar_widget)
         
+        # Sidebar Header
         self.sidebar_header = QtWidgets.QLabel("Collections")
         self.sidebar_header.setStyleSheet("font-weight: bold; padding: 5px;")
         self.sidebar_layout.addWidget(self.sidebar_header)
@@ -29,10 +31,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sidebar.setHeaderHidden(True)
         self.sidebar.setFixedWidth(250)
         self.sidebar.itemDoubleClicked.connect(self.load_request_from_item)
+        self.sidebar.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.sidebar.customContextMenuRequested.connect(self.show_sidebar_context_menu)
         self.sidebar_layout.addWidget(self.sidebar)
         
         # Collection Manager
-        import os
         from hellorestsoft.models.collection import CollectionManager
         self.collection_manager = CollectionManager(os.path.expanduser("~/.hellorestsoft/collections"))
         self.refresh_sidebar()
@@ -41,6 +44,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs = QtWidgets.QTabWidget()
         self.tabs.setTabsClosable(True)
         self.tabs.tabCloseRequested.connect(self.close_tab)
+        
+        # New Request Button in Tab Bar
+        self.new_tab_btn = QtWidgets.QToolButton()
+        self.new_tab_btn.setText("+")
+        self.new_tab_btn.setToolTip("New Request (Ctrl+T)")
+        self.new_tab_btn.clicked.connect(lambda: self.add_new_request_tab())
+        self.tabs.setCornerWidget(self.new_tab_btn, QtCore.Qt.TopRightCorner)
+        
         self.layout.addWidget(self.tabs)
         
         # Add a default new request tab
@@ -51,19 +62,84 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
 
+        # Shortcuts
+        QtWidgets.QShortcut(QtGui.QKeySequence.New, self, self.add_new_request_tab)
+        QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+T"), self, self.add_new_request_tab)
+
     def refresh_sidebar(self):
         self.sidebar.clear()
-        requests = self.collection_manager.get_requests()
-        for req in requests:
-            item = QtWidgets.QTreeWidgetItem([req['name']])
-            item.setData(0, QtCore.Qt.UserRole, req['path'])
-            self.sidebar.addTopLevelItem(item)
+        tree = self.collection_manager.get_tree()
+        self._populate_tree(self.sidebar, tree, self.collection_manager.root_path)
+        self.sidebar.expandAll()
+
+    def _populate_tree(self, parent_widget, tree_data, current_path):
+        # Add directories
+        for name, subtree in tree_data.get('dirs', {}).items():
+            item = QtWidgets.QTreeWidgetItem([name])
+            item.setIcon(0, self.style().standardIcon(QtWidgets.QStyle.SP_DirIcon))
+            full_path = os.path.join(current_path, name)
+            item.setData(0, QtCore.Qt.UserRole, {'type': 'dir', 'path': full_path})
+            
+            if isinstance(parent_widget, QtWidgets.QTreeWidget):
+                parent_widget.addTopLevelItem(item)
+            else:
+                parent_widget.addChild(item)
+                
+            self._populate_tree(item, subtree, full_path)
+            
+        # Add files
+        for file_info in tree_data.get('files', []):
+            item = QtWidgets.QTreeWidgetItem([file_info['name']])
+            item.setIcon(0, self.style().standardIcon(QtWidgets.QStyle.SP_FileIcon))
+            item.setData(0, QtCore.Qt.UserRole, {'type': 'file', 'path': file_info['path']})
+            
+            if isinstance(parent_widget, QtWidgets.QTreeWidget):
+                parent_widget.addTopLevelItem(item)
+            else:
+                parent_widget.addChild(item)
+
+    def show_sidebar_context_menu(self, position):
+        menu = QtWidgets.QMenu()
+        
+        # Determine context
+        item = self.sidebar.itemAt(position)
+        item_data = item.data(0, QtCore.Qt.UserRole) if item else None
+        
+        create_collection_action = menu.addAction("New Collection")
+        create_collection_action.triggered.connect(self.create_collection)
+        
+        # Only allow deleting if an item is selected
+        if item:
+             # TODO: Add delete functionality
+             pass
+
+        menu.exec_(self.sidebar.viewport().mapToGlobal(position))
+
+    def create_collection(self):
+        # Get selected item for parent
+        selected_items = self.sidebar.selectedItems()
+        parent_path = self.collection_manager.root_path
+        if selected_items:
+            item = selected_items[0]
+            item_data = item.data(0, QtCore.Qt.UserRole)
+            if item_data['type'] == 'dir':
+                parent_path = item_data['path']
+            elif item_data['type'] == 'file':
+                parent_path = os.path.dirname(item_data['path'])
+
+        name, ok = qtutils.prompt("Enter collection name:", "New Collection")
+        if ok and name:
+            try:
+                self.collection_manager.create_collection(name, parent_path)
+                self.refresh_sidebar()
+            except Exception as e:
+                QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
     def load_request_from_item(self, item, column):
-        path = item.data(0, QtCore.Qt.UserRole)
-        if path:
-            data = self.collection_manager.load_request(path)
-            self.add_new_request_tab(data, name=item.text(0))
+        data = item.data(0, QtCore.Qt.UserRole)
+        if data and data['type'] == 'file':
+            req_data = self.collection_manager.load_request(data['path'])
+            self.add_new_request_tab(req_data, name=item.text(0))
 
     def add_new_request_tab(self, data=None, name="New Request"):
         from hellorestsoft.widgets.request_view import RequestView
@@ -75,13 +151,27 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.setCurrentIndex(index)
 
     def save_request(self, data):
-        from cola import qtutils
+        # Get selected item in sidebar to determine save location
+        selected_items = self.sidebar.selectedItems()
+        parent_path = self.collection_manager.root_path
+        
+        if selected_items:
+            item = selected_items[0]
+            item_data = item.data(0, QtCore.Qt.UserRole)
+            if item_data['type'] == 'dir':
+                parent_path = item_data['path']
+            elif item_data['type'] == 'file':
+                parent_path = os.path.dirname(item_data['path'])
+        
         name, ok = qtutils.prompt("Enter request name:", "Save Request")
         if ok and name:
-            self.collection_manager.save_request(name, data)
-            self.refresh_sidebar()
-            # Update tab title
-            self.tabs.setTabText(self.tabs.currentIndex(), name)
+            try:
+                self.collection_manager.save_request(name, data, parent_path)
+                self.refresh_sidebar()
+                # Update tab title
+                self.tabs.setTabText(self.tabs.currentIndex(), name)
+            except Exception as e:
+                QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
     def close_tab(self, index):
         if self.tabs.count() > 1:

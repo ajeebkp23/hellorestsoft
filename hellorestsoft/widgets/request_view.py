@@ -99,12 +99,65 @@ class RequestView(QtWidgets.QWidget):
                 'elapsed': response.elapsed.total_seconds()
             }
 
+    def set_data(self, data):
+        if 'method' in data:
+            self.method_combo.setCurrentText(data['method'])
+        if 'url' in data:
+            self.url_input.setText(data['url'])
+        if 'headers' in data:
+            self.req_headers_edit.setPlainText(data['headers'])
+        if 'body' in data:
+            self.req_body_edit.setPlainText(data['body'])
+            
+        # Restore response if available
+        if 'response' in data:
+            resp = data['response']
+            if 'status_code' in resp:
+                self.status_label.setText(f"Status: {resp.get('status_code')} | Time: {resp.get('elapsed', 0):.3f}s")
+            if 'text' in resp:
+                # Try to format JSON
+                try:
+                    json_obj = json.loads(resp['text'])
+                    formatted = json.dumps(json_obj, indent=2)
+                    self.resp_body_edit.setPlainText(formatted)
+                except:
+                    self.resp_body_edit.setPlainText(resp['text'])
+            if 'headers' in resp:
+                headers_text = "\n".join([f"{k}: {v}" for k, v in resp['headers'].items()])
+                self.resp_headers_edit.setPlainText(headers_text)
+
+    def get_data(self):
+        data = {
+            'method': self.method_combo.currentText(),
+            'url': self.url_input.text(),
+            'headers': self.req_headers_edit.toPlainText(),
+            'body': self.req_body_edit.toPlainText()
+        }
+        
+        # Include response data if available and not empty
+        if self.resp_body_edit.toPlainText():
+            # We reconstruct the response object from the UI state as best as we can
+            # Note: We don't store the raw response object, so we save what's visible
+            # For a more robust solution, we might want to store the last 'result' object
+            pass
+            
+        # Actually, let's store the last result if we have it.
+        # But since we don't have it stored in self, let's just save what we see?
+        # The user asked to "save requests along with their outputs".
+        # It's better to store the last result dictionary.
+        
+        if hasattr(self, 'last_result') and self.last_result:
+             data['response'] = self.last_result
+             
+        return data
+
     def handle_response(self, result):
         if isinstance(result, Exception):
             self.resp_body_edit.setPlainText(f"Error: {str(result)}")
             self.status_label.setText("Error")
             return
 
+        self.last_result = result # Store for saving
         self.status_label.setText(f"Status: {result['status_code']} | Time: {result['elapsed']:.3f}s")
         
         # Try to format JSON
@@ -120,24 +173,6 @@ class RequestView(QtWidgets.QWidget):
 
     def request_finished(self, task):
         self.send_button.setEnabled(True)
-
-    def set_data(self, data):
-        if 'method' in data:
-            self.method_combo.setCurrentText(data['method'])
-        if 'url' in data:
-            self.url_input.setText(data['url'])
-        if 'headers' in data:
-            self.req_headers_edit.setPlainText(data['headers'])
-        if 'body' in data:
-            self.req_body_edit.setPlainText(data['body'])
-
-    def get_data(self):
-        return {
-            'method': self.method_combo.currentText(),
-            'url': self.url_input.text(),
-            'headers': self.req_headers_edit.toPlainText(),
-            'body': self.req_body_edit.toPlainText()
-        }
 
     def request_save(self):
         self.save_requested.emit(self.get_data())
