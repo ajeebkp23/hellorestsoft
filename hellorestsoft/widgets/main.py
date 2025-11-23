@@ -12,15 +12,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.main_widget = QtWidgets.QWidget()
         self.setCentralWidget(self.main_widget)
         
-        self.layout = QtWidgets.QHBoxLayout(self.main_widget)
+        self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        self.layout = QtWidgets.QVBoxLayout(self.main_widget)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
+        self.layout.addWidget(self.splitter)
         
         # Sidebar
         self.sidebar_widget = QtWidgets.QWidget()
         self.sidebar_layout = QtWidgets.QVBoxLayout(self.sidebar_widget)
         self.sidebar_layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.addWidget(self.sidebar_widget)
+        self.splitter.addWidget(self.sidebar_widget)
         
         # Sidebar Header
         self.sidebar_header_widget = QtWidgets.QWidget()
@@ -42,7 +44,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.sidebar = QtWidgets.QTreeWidget()
         self.sidebar.setHeaderHidden(True)
-        self.sidebar.setFixedWidth(250)
+        # self.sidebar.setFixedWidth(250) # Removed fixed width
         self.sidebar.itemDoubleClicked.connect(self.load_request_from_item)
         self.sidebar.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.sidebar.customContextMenuRequested.connect(self.show_sidebar_context_menu)
@@ -65,7 +67,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.new_tab_btn.clicked.connect(lambda: self.add_new_request_tab())
         self.tabs.setCornerWidget(self.new_tab_btn, QtCore.Qt.TopRightCorner)
         
-        self.layout.addWidget(self.tabs)
+        self.splitter.addWidget(self.tabs)
+        
+        # Set initial splitter sizes (e.g., 250px for sidebar, rest for tabs)
+        self.splitter.setSizes([250, 750])
         
         # Add a default new request tab
         self.add_new_request_tab()
