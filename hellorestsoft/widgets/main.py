@@ -41,6 +41,12 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.sidebar_header_layout.addStretch()
 
+        self.settings_btn = QtWidgets.QToolButton()
+        self.settings_btn.setText("⚙")
+        self.settings_btn.setToolTip("Collection Settings")
+        self.settings_btn.clicked.connect(self.show_collection_settings)
+        self.sidebar_header_layout.addWidget(self.settings_btn)
+
         self.new_collection_btn = QtWidgets.QToolButton()
         self.new_collection_btn.setText("+")
         self.new_collection_btn.setToolTip("New Collection")
@@ -137,6 +143,52 @@ class MainWindow(QtWidgets.QMainWindow):
              pass
 
         menu.exec_(self.sidebar.viewport().mapToGlobal(position))
+
+    def show_collection_settings(self):
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Collection Settings")
+        dialog.setMinimumWidth(400)
+        
+        layout = QtWidgets.QVBoxLayout(dialog)
+        
+        # Current root path display
+        current_label = QtWidgets.QLabel("Current collection root:")
+        layout.addWidget(current_label)
+        
+        path_display = QtWidgets.QLineEdit(self.collection_manager.root_path)
+        path_display.setReadOnly(True)
+        layout.addWidget(path_display)
+        
+        # Change root folder button
+        change_btn = QtWidgets.QPushButton("Change Root Folder")
+        change_btn.clicked.connect(lambda: self.change_collection_root(dialog))
+        layout.addWidget(change_btn)
+        
+        # Buttons
+        button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+        
+        dialog.exec_()
+
+    def change_collection_root(self, parent_dialog=None):
+        new_path = QtWidgets.QFileDialog.getExistingDirectory(
+            self,
+            "Select Collection Root Folder",
+            self.collection_manager.root_path
+        )
+        
+        if new_path:
+            from hellorestsoft.models.collection import CollectionManager
+            self.collection_manager = CollectionManager(new_path)
+            self.refresh_sidebar()
+            QtWidgets.QMessageBox.information(
+                self,
+                "Success",
+                f"Collection root changed to:\n{new_path}"
+            )
+            if parent_dialog:
+                parent_dialog.reject()
 
     def create_collection(self):
         # Get selected item for parent
