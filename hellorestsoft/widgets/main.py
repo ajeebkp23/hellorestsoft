@@ -23,9 +23,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.layout.addWidget(self.sidebar_widget)
         
         # Sidebar Header
-        self.sidebar_header = QtWidgets.QLabel("Collections")
-        self.sidebar_header.setStyleSheet("font-weight: bold; padding: 5px;")
-        self.sidebar_layout.addWidget(self.sidebar_header)
+        self.sidebar_header_widget = QtWidgets.QWidget()
+        self.sidebar_header_layout = QtWidgets.QHBoxLayout(self.sidebar_header_widget)
+        self.sidebar_header_layout.setContentsMargins(5, 5, 5, 5)
+        self.sidebar_layout.addWidget(self.sidebar_header_widget)
+
+        self.sidebar_label = QtWidgets.QLabel("Collections")
+        self.sidebar_label.setStyleSheet("font-weight: bold;")
+        self.sidebar_header_layout.addWidget(self.sidebar_label)
+        
+        self.sidebar_header_layout.addStretch()
+
+        self.new_collection_btn = QtWidgets.QToolButton()
+        self.new_collection_btn.setText("+")
+        self.new_collection_btn.setToolTip("New Collection")
+        self.new_collection_btn.clicked.connect(self.create_collection)
+        self.sidebar_header_layout.addWidget(self.new_collection_btn)
 
         self.sidebar = QtWidgets.QTreeWidget()
         self.sidebar.setHeaderHidden(True)
