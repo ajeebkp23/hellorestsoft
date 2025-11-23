@@ -11,14 +11,22 @@ A Bruno-like REST client built using `git-cola` libraries and `httpx`.
 ## Installation
 
 ```bash
+# venv
+python -m venv venv
+. venv/bin/activate
+# or
+source venv/bin/activate
+
 pip install -e .
-pip install PyQt5  # or PySide2/6
+#pip install PyQt5  # or PySide2/6
+pip install PySide6
 ```
 
 ## Running
 
 ```bash
-hellorestsoft
+# venv
+venv/bin/hellorestsoft
 ```
 
 ## Development
